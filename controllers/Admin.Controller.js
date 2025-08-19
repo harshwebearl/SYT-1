@@ -1219,8 +1219,6 @@ module.exports = class AdminController extends BaseController {
       if (custom2.length > 30) {
         custom2 = custom2.slice(0, 30);
       }
-      console.log(booking4.length);
-      console.log(custom2.length);
       var top_agency_1_month = await req_data(booking2, 1);
       var top_agency_3_month = await req_data(booking2, 3);
       var top_agency_6_month = await req_data(booking2, 6);
@@ -1823,7 +1821,7 @@ module.exports = class AdminController extends BaseController {
         .sort((a, b) => b.bookingCount - a.bookingCount)
         .slice(0, 5);
 
-      // Top 12 Momths Agency Bookings Counts
+      // Top 12 Momths Agency Bookings
 
       const top12MonthsBidAgencyBookings = await bookpackageschema.aggregate([
         {
