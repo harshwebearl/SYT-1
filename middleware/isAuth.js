@@ -102,7 +102,7 @@ module.exports = (req, res, next) => {
       console.log('Warning: Could not decode token header');
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'asd';T || 'asd';
+    const jwtSecret = process.env.JWT_SECRET || 'WebEarl!1';T || 'asd';
     console.log('Verifying with secret:', jwtSecret.substring(0, 3) + '...');
 
     jwt.verify(token, jwtSecret, (err, authData) => {
