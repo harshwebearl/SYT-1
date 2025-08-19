@@ -1,0 +1,215 @@
+#!/usr/bin/env node
+
+/**
+ * Start Your Tour API Server
+ * Main server entry point
+ */
+
+'use strict';
+
+// Initialize environment configuration
+const path = require('path');
+const fs = require('fs');
+const debug = require('debug')('start-your-tour:server');
+
+// Environment setup
+const NODE_ENV = process.env.NODE_ENV?.trim() || 'development';
+console.log(`\n🔧 Environment: ${NODE_ENV}`);
+debug(`Debug: NODE_ENV set to ${NODE_ENV}`);
+
+// Load environment variables
+const dotenv = require('dotenv');
+const envFile = `.env.${NODE_ENV}.local`;
+const envPath = path.join(__dirname, '..', envFile);
+
+debug(`Debug: Checking for env file at ${envPath}`);
+if (fs.existsSync(envPath)) {
+  console.log(`📁 Loading environment from: ${envFile}`);
+  debug(`Debug: Loading .env file from ${envPath}`);
+  dotenv.config({
+    debug: NODE_ENV === 'development',
+    path: envPath
+  });
+} else {
+  console.log('📁 Loading default environment configuration');
+  debug('Debug: No specific env file found, loading default .env');
+  dotenv.config();
+}
+
+// Module dependencies
+debug('Debug: Loading app and server modules');
+const app = require('../app');
+const { server } = require('../socket/socket');
+debug('Debug: App and server modules loaded successfully');
+
+// Get port from environment and store in Express
+const port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+debug(`Debug: Port set to ${port}`);
+
+// Graceful shutdown handling
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+process.on('uncaughtException', handleUncaughtException);
+process.on('unhandledRejection', handleUnhandledRejection);
+
+// Start server
+debug('Debug: Calling startServer');
+startServer();
+
+/**
+ * Start the HTTP server
+ */
+function startServer() {
+  debug('Debug: Inside startServer function');
+  try {
+    debug(`Debug: Attempting to start server on port ${port}`);
+    server.listen(port, () => {
+      console.log(`\n🚀 Start Your Tour API Server Started`);
+      console.log(`📡 Port: ${port}`);
+      console.log(`🌍 Environment: ${NODE_ENV}`);
+      console.log(`⏰ Started at: ${new Date().toISOString()}`);
+      debug('Debug: Server started successfully');
+    });
+
+    server.on('error', onError);
+    server.on('listening', onListening);
+    debug('Debug: Server event listeners attached');
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    debug(`Debug: Server startup error: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+/**
+ * Normalize a port into a number, string, or false
+ */
+function normalizePort(val) {
+  debug(`Debug: Normalizing port ${val}`);
+  const port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    debug('Debug: Port is a named pipe');
+    return val;
+  }
+
+  if (port >= 0) {
+    debug(`Debug: Port normalized to ${port}`);
+    return port;
+  }
+
+  debug('Debug: Invalid port, returning false');
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event
+ */
+function onError(error) {
+  debug(`Debug: Server error event triggered: ${error.message}`);
+  if (error.syscall !== 'listen') {
+    console.error('❌ Server error:', error);
+    debug(`Debug: Non-listen error: ${error.stack}`);
+    throw error;
+  }
+
+  const bind = typeof port === 'string' ? `Pipe ${port}` : `Port ${port}`;
+
+  // Handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(`❌ ${bind} requires elevated privileges`);
+      debug(`Debug: EACCES error on ${bind}`);
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(`❌ ${bind} is already in use`);
+      console.log('💡 Try using a different port or stop the process using this port');
+      debug(`Debug: EADDRINUSE error on ${bind}`);
+      process.exit(1);
+      break;
+    case 'ENOTFOUND':
+      console.error(`❌ Address not found: ${bind}`);
+      debug(`Debug: ENOTFOUND error on ${bind}`);
+      process.exit(1);
+      break;
+    default:
+      console.error('❌ Server listen error:', error);
+      debug(`Debug: Unknown listen error: ${error.stack}`);
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event
+ */
+function onListening() {
+  const addr = server.address();
+  const bind = typeof addr === 'string' ? `pipe ${addr}` : `port ${addr.port}`;
+
+  debug(`Debug: Server listening on ${bind}`);
+
+  // Server successfully started
+  if (server.listening) {
+    console.log('\n✅ Server is running successfully!');
+    console.log(`🌐 Local URL: http://localhost:${addr.port}`);
+    console.log(`🔗 API Base: http://localhost:${addr.port}/api`);
+    console.log(`📚 Docs: http://localhost:${addr.port}/api-docs`);
+    console.log(`🔌 Socket.IO: Enabled`);
+    console.log('\n🎯 Server is ready to accept connections\n');
+    debug('Debug: Server is fully operational');
+  }
+}
+
+/**
+ * Graceful shutdown handler
+ */
+function gracefulShutdown(signal) {
+  console.log(`\n🛑 Received ${signal}. Starting graceful shutdown...`);
+  debug(`Debug: Initiating graceful shutdown due to ${signal}`);
+
+  server.close((err) => {
+    if (err) {
+      console.error('❌ Error during server shutdown:', err);
+      debug(`Debug: Shutdown error: ${err.message}`);
+      process.exit(1);
+    }
+
+    console.log('✅ Server closed successfully');
+    console.log('👋 Goodbye!');
+    debug('Debug: Server shutdown completed');
+    process.exit(0);
+  });
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    console.error('⚠️ Forced shutdown due to timeout');
+    debug('Debug: Forced shutdown triggered after timeout');
+    process.exit(1);
+  }, 10000);
+}
+
+/**
+ * Handle uncaught exceptions
+ */
+function handleUncaughtException(error) {
+  console.error('❌ Uncaught Exception:', error);
+  console.error('Stack trace:', error.stack);
+  debug(`Debug: Uncaught exception: ${error.message}`);
+
+  // Attempt graceful shutdown
+  gracefulShutdown('UNCAUGHT_EXCEPTION');
+}
+
+/**
+ * Handle unhandled promise rejections
+ */
+function handleUnhandledRejection(reason, promise) {
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('Reason:', reason);
+  debug(`Debug: Unhandled rejection: ${reason}`);
+
+  // Attempt graceful shutdown
+  gracefulShutdown('UNHANDLED_REJECTION');
+}

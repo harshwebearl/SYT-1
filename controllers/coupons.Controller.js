@@ -1,0 +1,299 @@
+const BaseController = require("./BaseController");
+const Forbidden = require("../errors/Forbidden");
+const NotFound = require("../errors/NotFound");
+const userSchema = require("../models/usersSchema");
+const coupon_schema = require("../models/couponsSchema");
+const mongoose = require("mongoose");
+
+module.exports = class coupons_Controller extends BaseController {
+  async add_coupons(req, res) {
+    try {
+      const tokenData = req.userData;
+      if (tokenData === "") {
+        return res.status(401).json({
+          message: "Auth fail"
+        });
+      }
+      const userData = await userSchema.find({ _id: tokenData.id });
+      if (userData[0].role !== "agency") {
+        throw new Forbidden("you are not agency");
+      }
+
+      const data = {
+        agency_id: tokenData.id,
+        name: req.body.name,
+        for: req.body.for,
+        code: req.body.code,
+        lower_amount_limit: req.body.lower_amount_limit,
+        upper_amount_limit: req.body.upper_amount_limit,
+        discount_type: req.body.discount_type,
+        discount_value: req.body.discount_value,
+        start_date: req.body.start_date,
+        end_date: req.body.end_date,
+        airline: req.body.airline,
+        is_discount_on_markup: req.body.is_discount_on_markup,
+        users_list: req.body.users_list,
+        per_user_use_limit: req.body.per_user_use_limit
+      };
+
+      const add_coupons = new coupon_schema(data);
+      const Add_coupons = await add_coupons.save();
+      return this.sendJSONResponse(
+        res,
+        "add coupons ",
+        {
+          length: 1
+        },
+        Add_coupons
+      );
+    } catch (error) {
+      if (error instanceof NotFound) {
+        console.log(error); // throw error;
+      }
+      return this.sendErrorResponse(req, res, error);
+    }
+  }
+
+  async display_coupons(req, res) {
+    try {
+      const _id = req.query._id;
+      const tokenData = req.userData;
+      if (tokenData === "") {
+        return res.status(401).json({
+          message: "Auth fail"
+        });
+      }
+      const userData = await userSchema.find({ _id: tokenData.id });
+      if (userData[0].role !== "agency") {
+        throw new Forbidden("you are not agency");
+      }
+
+      const display_coupons = await coupon_schema.find({ agency_id: tokenData.id, _id: _id });
+
+      return this.sendJSONResponse(
+        res,
+        "display  coupons",
+        {
+          length: 1
+        },
+        display_coupons
+      );
+    } catch (error) {
+      if (error instanceof NotFound) {
+        console.log(error); // throw error;
+      }
+      return this.sendErrorResponse(req, res, error);
+    }
+  }
+
+  async display_all_coupons(req, res) {
+    try {
+      const is_deleted = req.query.is_deleted;
+      const tokenData = req.userData;
+      if (tokenData === "") {
+        return res.status(401).json({
+          message: "Auth fail"
+        });
+      }
+      const userData = await userSchema.find({ _id: tokenData.id });
+      if (userData[0].role !== "agency") {
+        throw new Forbidden("you are not agency");
+      }
+
+      // let { limit, page, is_deleted } = req.query;
+      // if ([null, undefined, ""].includes(page)) {
+      //   page = 1;
+      // }
+      // if ([null, undefined, "", 1].includes(limit)) {
+      //   limit = 50;
+      // }
+      // const option = {
+      //   limit: limit,
+      //   page: page
+      // };
+
+      // let productPaginate1;
+      let result;
+      // let Data = [];
+      if (is_deleted === "true") {
+        console.log("123");
+        result = await coupon_schema.aggregate([
+          {
+            $match: {
+              $and: [{ is_deleted: true }, { agency_id: mongoose.Types.ObjectId(tokenData.id) }]
+            }
+          }
+        ]);
+        // productPaginate1 = await coupon_schema.aggregatePaginate(result, option);
+        // productPaginate1.docs.forEach((element) => {
+        //   Data.push({
+        //     _id: element._id,
+        //     name: element.name,
+        //     agency_id: element.agency_id,
+        //     for: element.for,
+        //     code: element.code,
+        //     lower_amount_limit: element.lower_amount_limit,
+        //     upper_amount_limit: element.upper_amount_limit,
+        //     discount_type: element.discount_type,
+        //     discount_value: element.discount_value,
+        //     start_date: element.start_date,
+        //     end_date: element.end_date,
+        //     airline: element.airline,
+        //     is_discount_on_markup: element.is_discount_on_markup,
+        //     users_list: element.users_list,
+        //     is_deleted: element.is_deleted,
+        //     createdAt: element.createdAt,
+        //     updatedAt: element.updatedAt
+        //   });
+        // });
+      } else {
+        console.log("456");
+        result = await coupon_schema.aggregate([
+          {
+            $match: {
+              $and: [{ is_deleted: { $ne: true } }, { agency_id: mongoose.Types.ObjectId(tokenData.id) }]
+            }
+          }
+        ]);
+        // productPaginate1 = await coupon_schema.aggregatePaginate(result, option);
+        // productPaginate1.docs.forEach((element) => {
+        //   Data.push({
+        //     _id: element._id,
+        //     name: element.name,
+        //     agency_id: element.agency_id,
+        //     for: element.for,
+        //     code: element.code,
+        //     lower_amount_limit: element.lower_amount_limit,
+        //     upper_amount_limit: element.upper_amount_limit,
+        //     discount_type: element.discount_type,
+        //     discount_value: element.discount_value,
+        //     start_date: element.start_date,
+        //     end_date: element.end_date,
+        //     airline: element.airline,
+        //     is_discount_on_markup: element.is_discount_on_markup,
+        //     users_list: element.users_list,
+        //     is_deleted: element.is_deleted,
+        //     createdAt: element.createdAt,
+        //     updatedAt: element.updatedAt
+        //   });
+        // });
+      }
+
+      // const pageInfo = {};
+      // pageInfo.totalDocs = productPaginate1.totalDocs;
+      // pageInfo.limit = productPaginate1.limit;
+      // pageInfo.page = productPaginate1.page;
+      // pageInfo.totalPages = productPaginate1.totalDocs;
+      // pageInfo.pagingCounter = productPaginate1.pagingCounter;
+      // pageInfo.hasPrevPage = productPaginate1.hasPrevPage;
+      // pageInfo.hasNextPage = productPaginate1.hasNextPage;
+      // pageInfo.prevPage = productPaginate1.prevPage;
+      // pageInfo.nextPage = productPaginate1.nextPage;
+
+      const coupons = {
+        coupons: result
+        // pageInfo: pageInfo
+      };
+
+      return this.sendJSONResponse(
+        res,
+        "display all coupons",
+        {
+          length: 1
+        },
+        coupons
+      );
+    } catch (error) {
+      if (error instanceof NotFound) {
+        console.log(error); // throw error;
+      }
+      return this.sendErrorResponse(req, res, error);
+    }
+  }
+
+  async update_coupons(req, res) {
+    try {
+      const tokenData = req.userData;
+      if (tokenData === "") {
+        return res.status(401).json({
+          message: "Auth fail"
+        });
+      }
+      const userData = await userSchema.find({ _id: tokenData.id });
+      if (userData[0].role !== "agency") {
+        throw new Forbidden("you are not agency");
+      }
+
+      const _id = req.query._id;
+
+      const Data = {
+        name: req.body.name,
+        for: req.body.for,
+        code: req.body.code,
+        lower_amount_limit: req.body.lower_amount_limit,
+        upper_amount_limit: req.body.upper_amount_limit,
+        discount_type: req.body.discount_type,
+        discount_value: req.body.discount_value,
+        start_date: req.body.start_date,
+        end_date: req.body.end_date,
+        airline: req.body.airline,
+        is_discount_on_markup: req.body.is_discount_on_markup,
+        users_list: req.body.users_list,
+        per_user_use_limit: req.body.per_user_use_limit,
+        is_deleted: req.body.is_deleted
+      };
+
+      const update_coupons = await coupon_schema.findByIdAndUpdate({ _id: _id, agency_id: tokenData.id }, Data);
+      return this.sendJSONResponse(
+        res,
+        "update coupons",
+        {
+          length: 1
+        },
+        update_coupons
+      );
+    } catch (error) {
+      if (error instanceof NotFound) {
+        console.log(error); // throw error;
+      }
+      return this.sendErrorResponse(req, res, error);
+    }
+  }
+
+  async delete_coupons(req, res) {
+    try {
+      const _id = req.query._id;
+
+      const tokenData = req.userData;
+      if (tokenData === "") {
+        return res.status(401).json({
+          message: "Auth fail"
+        });
+      }
+      const userData = await userSchema.find({ _id: tokenData.id });
+      if (userData[0].role !== "agency") {
+        throw new Forbidden("you are not agency");
+      }
+
+      const Data = {
+        is_deleted: true
+      };
+
+      const delete_coupons = await coupon_schema.findByIdAndUpdate({ _id: _id }, Data);
+
+      return this.sendJSONResponse(
+        res,
+        "delete coupons",
+        {
+          length: 1
+        },
+        delete_coupons
+      );
+    } catch (error) {
+      if (error instanceof NotFound) {
+        console.log(error); // throw error;
+      }
+      return this.sendErrorResponse(req, res, error);
+    }
+  }
+};
